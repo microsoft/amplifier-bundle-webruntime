@@ -1,0 +1,13 @@
+bundle:
+  name: browser-agents
+  version: 0.1.0
+  description: |
+    Browser development context + agents. CLI-safe.
+    Default behavior for CLI users building browser applications.
+
+includes:
+  - bundle: browser:behaviors/browser-context
+
+agents:
+  include:
+    - browser:browser-developer

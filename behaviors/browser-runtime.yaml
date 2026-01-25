@@ -1,27 +1,13 @@
 bundle:
-  name: browser-runtime-behavior
+  name: browser-runtime
   version: 0.1.0
   description: |
-    Core browser runtime behavior providing browser-specific tools and capabilities.
-    Includes the browser-developer agent for building browser Amplifier integrations.
+    Browser runtime behavior with browser-specific tools.
+    BROWSER-ONLY: These tools require Pyodide JS bridge.
 
-# Browser-compatible tools
+includes:
+  - bundle: browser:behaviors/browser-context
+
 tools:
-  # Include existing tools that work in browser environment
-  - module: tool-todo
-    source: git+https://github.com/microsoft/amplifier-module-tool-todo@main
-  
-  # Browser-specific storage tool (localStorage/IndexedDB)
-  # NOTE: This tool requires JS bridge setup - won't work in CLI, only browser
   - module: tool-browser-storage
-    source: git+https://github.com/microsoft/amplifier-bundle-browser@main#subdirectory=modules/tool-browser-storage
-
-# Browser development expert agent
-agents:
-  include:
-    - browser:browser-developer
-
-# Inject browser-specific context
-context:
-  include:
-    - browser:context/browser-guide.md
+    source: browser:modules/tool-browser-storage

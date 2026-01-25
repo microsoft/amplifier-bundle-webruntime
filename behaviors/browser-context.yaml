@@ -1,0 +1,10 @@
+bundle:
+  name: browser-context
+  version: 0.1.0
+  description: |
+    Browser development context documentation. CLI-safe.
+    Use when you just need guidance docs without agents.
+
+context:
+  include:
+    - browser:context/browser-guide.md

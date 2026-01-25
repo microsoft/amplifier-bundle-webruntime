@@ -2,22 +2,10 @@ bundle:
   name: browser
   version: 0.1.0
   description: |
-    Browser runtime for Amplifier - runs Python/Amplifier in web browsers via Pyodide.
-    Provider-agnostic: compose with your choice of provider (WebLLM, OpenAI, Anthropic, etc.)
-
-# NO provider declared - this is a provider-agnostic base bundle
-# Users compose: includes: [browser, their-chosen-provider]
+    Browser development and runtime bundle for Amplifier.
+    
+    Default: CLI-safe context and agents for building browser apps.
+    For browser runtime: use behaviors/browser-runtime explicitly.
 
 includes:
-  - bundle: browser:behaviors/browser-runtime
-
-# Browser-specific session configuration
-session:
-  # Use in-memory context (browser has no filesystem for persistence)
-  context:
-    module: context-simple
-    config:
-      max_tokens: 100000
-      compact_threshold: 0.90
-      target_usage: 0.50
-      protected_recent: 0.30
+  - bundle: browser:behaviors/browser-agents
