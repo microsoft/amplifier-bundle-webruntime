@@ -199,26 +199,156 @@ Some sites restrict JavaScript execution:
 
 ---
 
+## Installing amplifier-core in Pyodide
+
+**IMPORTANT:** `amplifier-core` is NOT on PyPI. You cannot use `micropip.install('amplifier-core')`.
+
+Instead, use one of these patterns depending on your app type:
+
+### Pattern 1: Embedded Wheel (Single-File HTML)
+
+For portable single-file HTML apps, embed the wheel as base64:
+
+```html
+<!-- Embed wheel as base64 in a script tag -->
+<script id="amplifier-wheel-b64" type="text/plain">
+UEsDBBQAAAAIAAAAQlC3l5BdFwMAAFINAAAaAAAAYW1wbGlmaWVyX2NvcmUvX19pbml0X18ucHk...
+</script>
+```
+
+```javascript
+async function installAmplifierCore(pyodide) {
+    // 1. Get base64-encoded wheel from HTML
+    const wheelB64 = document.getElementById('amplifier-wheel-b64').textContent.trim();
+    
+    // 2. Decode to bytes
+    const wheelBytes = Uint8Array.from(atob(wheelB64), c => c.charCodeAt(0));
+    
+    // 3. Write to Pyodide's virtual filesystem
+    pyodide.FS.writeFile('/tmp/amplifier_core-1.0.0-py3-none-any.whl', wheelBytes);
+    
+    // 4. Install dependencies from PyPI, then amplifier-core from emfs:
+    const micropip = pyodide.pyimport('micropip');
+    await micropip.install(['pydantic', 'pyyaml', 'typing-extensions']);
+    await micropip.install('emfs:/tmp/amplifier_core-1.0.0-py3-none-any.whl');
+}
+```
+
+**Key insight:** The `emfs:` protocol tells micropip to install from Pyodide's Emscripten virtual filesystem.
+
+### Pattern 2: Static Asset (Web Apps)
+
+For web apps with multiple files, serve the wheel as a static asset:
+
+```
+project/
+├── index.html
+├── app.js
+└── assets/
+    └── amplifier_core-1.0.0-py3-none-any.whl
+```
+
+```javascript
+async function installAmplifierCore(pyodide) {
+    const micropip = pyodide.pyimport('micropip');
+    
+    // Install dependencies from PyPI
+    await micropip.install(['pydantic', 'pyyaml', 'typing-extensions']);
+    
+    // Install amplifier-core from local asset (same origin)
+    await micropip.install('/assets/amplifier_core-1.0.0-py3-none-any.whl');
+}
+```
+
+**Note:** This requires serving from a web server (won't work from `file://` due to CORS).
+
+### Pattern 3: Service Worker Cache (Production PWAs)
+
+For production apps needing offline support:
+
+```javascript
+// sw.js - Cache wheels with cache-first strategy
+self.addEventListener('fetch', (event) => {
+    if (event.request.url.endsWith('.whl')) {
+        event.respondWith(
+            caches.match(event.request).then(cached => 
+                cached || fetch(event.request).then(response => {
+                    const clone = response.clone();
+                    caches.open('amplifier-wheels-v1').then(cache => 
+                        cache.put(event.request, clone)
+                    );
+                    return response;
+                })
+            )
+        );
+    }
+});
+```
+
+### Which Pattern to Use?
+
+| Scenario | Pattern | Why |
+|----------|---------|-----|
+| Single HTML file, sharing via email/Slack | Embedded base64 | Self-contained, no server needed |
+| Web app with build step | Static asset | Cleaner, cached by browser |
+| Production PWA, offline-first | Service worker | Full cache control, updates independently |
+
+---
+
 ## Initialization Patterns
 
-### Basic Initialization
+### Basic Initialization (Web App)
 
 ```javascript
 async function initAmplifier() {
     // 1. Load Pyodide
     const pyodide = await loadPyodide();
     
-    // 2. Install packages
+    // 2. Load micropip
     await pyodide.loadPackage('micropip');
-    await pyodide.runPythonAsync(`
-        import micropip
-        await micropip.install('amplifier-core')
-    `);
+    const micropip = pyodide.pyimport('micropip');
     
-    // 3. Set up provider bridge
+    // 3. Install dependencies + amplifier-core
+    await micropip.install(['pydantic', 'pyyaml', 'typing-extensions']);
+    await micropip.install('/assets/amplifier_core-1.0.0-py3-none-any.whl');
+    
+    // 4. Set up provider bridge
     // (varies by provider - see provider-specific examples)
     
-    // 4. Initialize session
+    // 5. Initialize session
+    await pyodide.runPythonAsync(`
+        from amplifier_core import AmplifierSession
+        # Session setup code
+    `);
+    
+    return pyodide;
+}
+```
+
+### Basic Initialization (Single-File HTML)
+
+```javascript
+async function initAmplifier() {
+    // 1. Load Pyodide
+    const pyodide = await loadPyodide();
+    
+    // 2. Load micropip
+    await pyodide.loadPackage('micropip');
+    const micropip = pyodide.pyimport('micropip');
+    
+    // 3. Install dependencies from PyPI
+    await micropip.install(['pydantic', 'pyyaml', 'typing-extensions']);
+    
+    // 4. Install amplifier-core from embedded wheel
+    const wheelB64 = document.getElementById('amplifier-wheel-b64').textContent.trim();
+    const wheelBytes = Uint8Array.from(atob(wheelB64), c => c.charCodeAt(0));
+    pyodide.FS.writeFile('/tmp/amplifier_core-1.0.0-py3-none-any.whl', wheelBytes);
+    await micropip.install('emfs:/tmp/amplifier_core-1.0.0-py3-none-any.whl');
+    
+    // 5. Set up provider bridge
+    // (varies by provider - see provider-specific examples)
+    
+    // 6. Initialize session
     await pyodide.runPythonAsync(`
         from amplifier_core import AmplifierSession
         # Session setup code
@@ -237,12 +367,14 @@ async function initWithProgress(onProgress) {
     
     onProgress('Installing packages...', 30);
     await pyodide.loadPackage('micropip');
-    await pyodide.runPythonAsync(`
-        import micropip
-        await micropip.install('amplifier-core')
-    `);
+    const micropip = pyodide.pyimport('micropip');
+    await micropip.install(['pydantic', 'pyyaml', 'typing-extensions']);
     
-    onProgress('Setting up provider...', 60);
+    onProgress('Installing Amplifier...', 50);
+    // Use appropriate pattern: static asset or embedded wheel
+    await micropip.install('/assets/amplifier_core-1.0.0-py3-none-any.whl');
+    
+    onProgress('Setting up provider...', 70);
     // Provider setup...
     
     onProgress('Ready!', 100);
