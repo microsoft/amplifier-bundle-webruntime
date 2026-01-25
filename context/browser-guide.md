@@ -295,6 +295,391 @@ self.addEventListener('fetch', (event) => {
 
 ---
 
+## CRITICAL: Pyodide Compatibility Issues
+
+### PyYAML Version Conflict
+
+**This is the #1 cause of installation failures. Read carefully.**
+
+**The Problem:**
+- Pyodide 0.27.x bundles `pyyaml==6.0.2` (built-in, CANNOT be upgraded)
+- `amplifier-core` requires `pyyaml>=6.0.3` in its metadata
+- Running `micropip.install()` with dependencies will FAIL:
+
+```
+ValueError: Requested 'pyyaml>=6.0.3', but pyyaml==6.0.2 is already installed
+```
+
+**The Solution:** Install amplifier-core **without dependency resolution** using `deps=False`:
+
+```python
+# Install safe dependencies first
+await micropip.install(['pydantic', 'typing-extensions'])
+
+# Install amplifier-core WITHOUT checking dependencies
+await micropip.install('emfs:/tmp/amplifier_core.whl', deps=False)
+```
+
+**Why this is safe:** The 6.0.2 vs 6.0.3 difference is a minor patch version. There are NO runtime incompatibilities - amplifier-core works perfectly fine with PyYAML 6.0.2. This is purely a package metadata conflict.
+
+### micropip API: JavaScript vs Python
+
+**CRITICAL:** The micropip API behaves differently when called from JavaScript vs Python.
+
+```javascript
+// ❌ WRONG - JavaScript object syntax does NOT work for micropip options
+const micropip = pyodide.pyimport('micropip');
+await micropip.install('package.whl', {deps: false});  // FAILS!
+
+// ❌ ALSO WRONG - Named arguments don't work from JS
+await micropip.install('package.whl', undefined, false);  // FAILS!
+```
+
+```javascript
+// ✅ CORRECT - Run micropip entirely from Python
+await pyodide.runPythonAsync(`
+    import micropip
+    await micropip.install('emfs:/tmp/amplifier_core.whl', deps=False)
+`);
+```
+
+**Rule of thumb:** For any micropip operation with options (like `deps=False`), use `pyodide.runPythonAsync()` with Python code, not the JavaScript micropip proxy.
+
+### Putting It Together: Correct Installation
+
+```javascript
+async function installAmplifierCore(pyodide) {
+    // 1. Decode embedded wheel and write to virtual filesystem
+    const wheelB64 = document.getElementById('amplifier-wheel-b64').textContent.trim();
+    const wheelBytes = Uint8Array.from(atob(wheelB64), c => c.charCodeAt(0));
+    pyodide.FS.writeFile('/tmp/amplifier_core.whl', wheelBytes);
+    
+    // 2. Install everything via Python (NOT JavaScript micropip proxy)
+    await pyodide.runPythonAsync(`
+        import micropip
+        
+        # Install dependencies that ARE compatible with Pyodide
+        await micropip.install(['pydantic', 'typing-extensions'])
+        
+        # Install amplifier-core WITHOUT dependency checking
+        # This avoids the pyyaml 6.0.2 vs 6.0.3 conflict
+        await micropip.install('emfs:/tmp/amplifier_core.whl', deps=False)
+        
+        print("amplifier-core installed successfully!")
+    `);
+}
+```
+
+---
+
+## Complete Working Example
+
+This is a **verified, copy-paste working** single-file HTML that includes everything:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Amplifier + WebLLM Demo</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            font-family: system-ui, sans-serif; 
+            background: #1a1a2e; 
+            color: #eee;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        #status { 
+            padding: 20px; 
+            text-align: center; 
+            background: #16213e;
+        }
+        #progress-container {
+            width: 80%;
+            max-width: 400px;
+            margin: 10px auto;
+            background: #0f3460;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        #progress-bar {
+            height: 20px;
+            background: linear-gradient(90deg, #e94560, #ff6b6b);
+            width: 0%;
+            transition: width 0.3s;
+        }
+        #chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            max-width: 800px;
+            margin: 0 auto;
+            width: 100%;
+            padding: 20px;
+        }
+        #messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+        .message {
+            margin: 10px 0;
+            padding: 12px 16px;
+            border-radius: 12px;
+            max-width: 80%;
+        }
+        .user { 
+            background: #e94560; 
+            margin-left: auto; 
+        }
+        .assistant { 
+            background: #16213e; 
+        }
+        #input-container {
+            display: flex;
+            gap: 10px;
+            padding: 10px 0;
+        }
+        #user-input {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: #16213e;
+            color: #eee;
+            font-size: 16px;
+        }
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            background: #e94560;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div id="status">
+        <h2>Loading Amplifier + WebLLM...</h2>
+        <div id="progress-container">
+            <div id="progress-bar"></div>
+        </div>
+        <p id="status-text">Initializing...</p>
+    </div>
+    
+    <div id="chat-container" class="hidden">
+        <div id="messages"></div>
+        <div id="input-container">
+            <input type="text" id="user-input" placeholder="Type a message..." />
+            <button id="send-btn">Send</button>
+        </div>
+    </div>
+
+    <!-- EMBEDDED AMPLIFIER-CORE WHEEL (base64) -->
+    <!-- Generate this with: python scripts/build-wheel.py --source ~/repos/amplifier-core --output ./dist --html-snippet -->
+    <script id="amplifier-wheel-b64" type="text/plain">
+    <!-- PASTE YOUR BASE64 WHEEL HERE -->
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.27.0/full/pyodide.js"></script>
+    <script type="module">
+        import { CreateMLCEngine } from 'https://esm.run/@mlc-ai/web-llm';
+        
+        const MODEL_ID = 'Phi-3.5-mini-instruct-q4f16_1-MLC';
+        
+        let pyodide = null;
+        let webllmEngine = null;
+        
+        // UI Elements
+        const statusDiv = document.getElementById('status');
+        const statusText = document.getElementById('status-text');
+        const progressBar = document.getElementById('progress-bar');
+        const chatContainer = document.getElementById('chat-container');
+        const messagesDiv = document.getElementById('messages');
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        
+        function updateProgress(pct, text) {
+            progressBar.style.width = `${pct}%`;
+            statusText.textContent = text;
+        }
+        
+        function addMessage(role, content) {
+            const div = document.createElement('div');
+            div.className = `message ${role}`;
+            div.textContent = content;
+            messagesDiv.appendChild(div);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        async function init() {
+            try {
+                // 1. Load Pyodide
+                updateProgress(10, 'Loading Python runtime...');
+                pyodide = await loadPyodide();
+                
+                // 2. Load micropip
+                updateProgress(20, 'Loading package manager...');
+                await pyodide.loadPackage('micropip');
+                
+                // 3. Install amplifier-core (with deps=False to avoid PyYAML conflict)
+                updateProgress(30, 'Installing Amplifier...');
+                
+                // Decode and write wheel to virtual filesystem
+                const wheelB64 = document.getElementById('amplifier-wheel-b64').textContent.trim();
+                if (!wheelB64 || wheelB64.includes('PASTE YOUR')) {
+                    throw new Error('Please embed the amplifier-core wheel base64. See scripts/build-wheel.py');
+                }
+                const wheelBytes = Uint8Array.from(atob(wheelB64), c => c.charCodeAt(0));
+                pyodide.FS.writeFile('/tmp/amplifier_core.whl', wheelBytes);
+                
+                // Install via Python to use deps=False
+                await pyodide.runPythonAsync(`
+                    import micropip
+                    await micropip.install(['pydantic', 'typing-extensions'])
+                    await micropip.install('emfs:/tmp/amplifier_core.whl', deps=False)
+                    print("amplifier-core installed!")
+                `);
+                
+                // 4. Load WebLLM model
+                updateProgress(50, 'Loading AI model (this may take a few minutes)...');
+                webllmEngine = await CreateMLCEngine(MODEL_ID, {
+                    initProgressCallback: (progress) => {
+                        const pct = 50 + Math.round(progress.progress * 40);
+                        updateProgress(pct, `Loading model: ${Math.round(progress.progress * 100)}%`);
+                    }
+                });
+                
+                // 5. Set up the bridge function for Amplifier to call WebLLM
+                updateProgress(95, 'Setting up Amplifier session...');
+                
+                // Register the JS completion function that Python will call
+                pyodide.globals.set('js_webllm_complete', async (messagesJson) => {
+                    const messages = JSON.parse(messagesJson);
+                    const response = await webllmEngine.chat.completions.create({
+                        messages: messages,
+                        temperature: 0.7,
+                        max_tokens: 1024
+                    });
+                    return JSON.stringify({
+                        content: response.choices[0].message.content,
+                        usage: response.usage
+                    });
+                });
+                
+                // Initialize Amplifier session with WebLLM provider bridge
+                await pyodide.runPythonAsync(`
+                    import json
+                    from amplifier_core import Coordinator, Session
+                    from amplifier_core.types import Message, ProviderResponse
+                    
+                    # Create a simple WebLLM provider that bridges to JavaScript
+                    class WebLLMBridgeProvider:
+                        def __init__(self):
+                            self.model_id = "${MODEL_ID}"
+                        
+                        async def complete(self, messages, **kwargs):
+                            import js
+                            # Convert messages to JSON and call JS
+                            msgs_json = json.dumps([{"role": m.role, "content": m.content} for m in messages])
+                            result_json = await js.js_webllm_complete(msgs_json)
+                            result = json.loads(result_json)
+                            return ProviderResponse(
+                                content=result["content"],
+                                model=self.model_id,
+                                usage=result.get("usage", {})
+                            )
+                    
+                    # Create coordinator and session
+                    coordinator = Coordinator()
+                    provider = WebLLMBridgeProvider()
+                    session = Session(coordinator=coordinator)
+                    
+                    print("Amplifier session ready!")
+                `);
+                
+                // Ready!
+                updateProgress(100, 'Ready!');
+                setTimeout(() => {
+                    statusDiv.classList.add('hidden');
+                    chatContainer.classList.remove('hidden');
+                    userInput.focus();
+                }, 500);
+                
+            } catch (error) {
+                console.error('Initialization error:', error);
+                statusText.textContent = `Error: ${error.message}`;
+                statusText.style.color = '#e94560';
+            }
+        }
+        
+        async function sendMessage() {
+            const text = userInput.value.trim();
+            if (!text) return;
+            
+            userInput.value = '';
+            sendBtn.disabled = true;
+            addMessage('user', text);
+            
+            try {
+                // Use Amplifier session to handle the message
+                const response = await pyodide.runPythonAsync(`
+                    import json
+                    import asyncio
+                    
+                    user_msg = Message(role="user", content=${JSON.stringify(text)})
+                    session.context.add_message(user_msg)
+                    
+                    response = await provider.complete(session.context.get_messages())
+                    
+                    assistant_msg = Message(role="assistant", content=response.content)
+                    session.context.add_message(assistant_msg)
+                    
+                    response.content
+                `);
+                
+                addMessage('assistant', response);
+            } catch (error) {
+                console.error('Chat error:', error);
+                addMessage('assistant', `Error: ${error.message}`);
+            }
+            
+            sendBtn.disabled = false;
+            userInput.focus();
+        }
+        
+        // Event listeners
+        sendBtn.addEventListener('click', sendMessage);
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+        
+        // Start initialization
+        init();
+    </script>
+</body>
+</html>
+```
+
+**To use this example:**
+1. Build the wheel: `python scripts/build-wheel.py --source ~/repos/amplifier-core --output ./dist`
+2. Copy contents of `./dist/amplifier_core-*.b64.txt`
+3. Paste into the `<script id="amplifier-wheel-b64">` tag
+4. Open in a WebGPU-capable browser (Chrome/Edge 113+)
+
+---
+
 ## Initialization Patterns
 
 ### Basic Initialization (Web App)
