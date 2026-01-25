@@ -32,7 +32,16 @@ Using Amplifier (via Pyodide) instead of raw JavaScript provides:
 - **Hooks** - Logging, approval gates, observability
 - **Consistency** - Same Amplifier patterns work in CLI and browser
 
-Raw JavaScript WebLLM is fine for demos, but **real applications should use Amplifier**.
+### No Exceptions for "Demos" or "Simple" Apps
+
+**Even demos should use Amplifier + Pyodide.** Here's why:
+
+1. **Demos become real apps** - What starts as a demo often grows into production code
+2. **Teach the right patterns** - Demos should demonstrate the correct architecture
+3. **Amplifier CAN be simple** - A single-file Amplifier app is still simple and portable
+4. **Raw JS demos are trivial** - Anyone can ask ChatGPT for raw JS; this bundle exists for Amplifier
+
+**The only time to use raw JavaScript is when the user EXPLICITLY requests it with phrases like "pure JavaScript", "no Python", or "no Amplifier".**
 
 ---
 
