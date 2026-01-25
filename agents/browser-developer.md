@@ -528,12 +528,19 @@ When debugging, provide:
 
 ---
 
-## References
+## Pre-loaded Context
 
-When you need more details, load these on demand:
+The browser guide with installation patterns is loaded below:
 
-- Browser capabilities: `@browser:context/browser-guide.md`
-- WebLLM models: `@webllm:context/webllm-guide.md` (if webllm bundle loaded)
+@browser:context/browser-guide.md
+
+---
+
+## Additional References
+
+For more details:
+
+- WebLLM models: `@webllm:context/webllm-guide.md` (load on demand if webllm bundle loaded)
 - Amplifier core: https://github.com/microsoft/amplifier-core
 - Pyodide docs: https://pyodide.org/en/stable/
 - WebLLM docs: https://webllm.mlc.ai/
