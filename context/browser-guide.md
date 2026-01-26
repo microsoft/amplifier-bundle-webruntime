@@ -134,13 +134,28 @@ Before writing ANY browser Amplifier code, verify you have:
   `)
   ```
 
-- [ ] **JS bridge functions registered** before loading amplifier-browser:
+- [ ] **JS bridge functions registered on globalThis BEFORE loading amplifier-browser:**
+  
+  The bridge is TWO-SIDED:
+  1. **JS side**: Register functions on `globalThis` (not `pyodide.globals`)
+  2. **Python side**: `amplifier_browser.py` imports them via `from js import ...`
+  
   ```javascript
   // MUST use globalThis, NOT pyodide.globals.set()
   // Python's `from js import X` looks in globalThis, not pyodide.globals
+  // MUST be registered BEFORE loading amplifier-browser module
   globalThis.js_llm_complete = async (messagesJson, toolsJson) => {...};
   globalThis.js_llm_stream = async (messagesJson, onChunk) => {...};
   globalThis.js_web_fetch = async (url) => {...};
+  ```
+  
+  **Loading order matters:**
+  ```javascript
+  // 1. Register bridge functions on globalThis
+  globalThis.js_llm_complete = async (...) => {...};
+  
+  // 2. THEN load amplifier-browser (it imports from js at load time)
+  await pyodide.runPythonAsync(amplifierBrowserCode);
   ```
 
 - [ ] **Use create_session()** factory (don't wire up internals manually):

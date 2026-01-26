@@ -35,12 +35,16 @@ logger = logging.getLogger(__name__)
 
 # JS bridge functions injected by main.js
 if TYPE_CHECKING:
-
+    # Type hints for static analysis
     async def js_llm_complete(messages_json: str, tools_json: str | None) -> str: ...
     async def js_llm_stream(
         messages_json: str, on_chunk: Callable[[str], None]
     ) -> str: ...
     async def js_web_fetch(url: str) -> str: ...
+else:
+    # Runtime imports from Pyodide's js module
+    # These must be registered on globalThis BEFORE this module is loaded
+    from js import js_llm_complete, js_llm_stream, js_web_fetch
 
 
 # =============================================================================
