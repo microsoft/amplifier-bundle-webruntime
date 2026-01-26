@@ -177,6 +177,36 @@ Before writing ANY browser Amplifier code, verify you have:
 | `Could not parse wheel metadata` | Short wheel filename | Use full: `name-version-py3-none-any.whl` |
 | `js_llm_complete is not defined` | Wrong registration method OR missing bridge | Use `globalThis.js_llm_complete = ...` (NOT `pyodide.globals.set()`) |
 
+### Troubleshooting
+
+#### "NameError: name 'js_llm_complete' is not defined"
+
+**Possible causes:**
+
+1. **Wrong registration method** - Used `pyodide.globals.set()` instead of `globalThis.X = ...`
+2. **Wrong loading order** - Loaded amplifier-browser BEFORE registering bridge functions
+3. **Corrupted base64** - The embedded `amplifier-browser-py` content is stale/corrupted
+
+**Fix for corrupted base64:**
+```bash
+# Re-encode from source using the build script
+cd amplifier-bundle-browser
+python scripts/build-examples.py
+```
+
+**Prevention:** Never manually edit base64 content. Always use the build script to regenerate.
+
+#### Validating Embedded Content
+
+To check if embedded base64 is valid:
+```bash
+# Decode and check for required import
+grep -o '<script id="amplifier-browser-py"[^>]*>[^<]*' file.html | \
+  sed 's/.*>//' | base64 -d | grep "from js import"
+```
+
+Should output: `from js import js_llm_complete, js_llm_stream, js_web_fetch`
+
 ### The amplifier-browser Module
 
 **This module is ESSENTIAL for browser apps.** It's located at `src/amplifier_browser.py` in this bundle.
