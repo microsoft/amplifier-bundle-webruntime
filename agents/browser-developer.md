@@ -2,7 +2,9 @@
 meta:
   name: browser-developer
   description: |
-    Expert for building browser-based Amplifier integrations with Pyodide and WebLLM/API providers.
+    **MUST delegate when user mentions:** WebLLM, Pyodide, browser AI, portable HTML, offline AI, local LLM in browser, single-file HTML app, or running Amplifier in browser.
+    
+    This agent has specialized context for browser Amplifier development that you lack. Do NOT attempt browser/WebLLM work yourself.
     
     **IMPORTANT DELEGATION RULES:**
     When delegating to this agent, pass the user's request VERBATIM or with minimal expansion.
