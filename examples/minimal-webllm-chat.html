@@ -108,13 +108,14 @@ print("amplifier-core installed!")
                 });
 
                 // 4. Set up JS bridge functions (BEFORE loading amplifier-browser)
+                // MUST use globalThis - Python's `from js import X` looks in globalThis, NOT pyodide.globals
                 progress(85, 'Setting up Amplifier session...');
-                pyodide.globals.set('js_llm_complete', async (messagesJson, toolsJson) => {
+                globalThis.js_llm_complete = async (messagesJson, toolsJson) => {
                     const messages = JSON.parse(messagesJson);
                     const response = await engine.chat.completions.create({ messages, temperature: 0.7, max_tokens: 1024 });
                     return JSON.stringify({ content: response.choices[0].message.content, usage: response.usage, finish_reason: response.choices[0].finish_reason });
-                });
-                pyodide.globals.set('js_llm_stream', async (messagesJson, onChunk) => {
+                };
+                globalThis.js_llm_stream = async (messagesJson, onChunk) => {
                     const messages = JSON.parse(messagesJson);
                     let fullContent = '';
                     const stream = await engine.chat.completions.create({ messages, temperature: 0.7, max_tokens: 1024, stream: true });
@@ -124,11 +125,11 @@ print("amplifier-core installed!")
                         onChunk(delta);
                     }
                     return JSON.stringify({ content: fullContent, finish_reason: 'stop' });
-                });
-                pyodide.globals.set('js_web_fetch', async (url) => {
+                };
+                globalThis.js_web_fetch = async (url) => {
                     try { const r = await fetch(url); return await r.text(); }
                     catch (e) { return `Error: ${e.message}`; }
-                });
+                };
 
                 // 5. Load amplifier-browser module and create session
                 progress(90, 'Creating Amplifier session...');

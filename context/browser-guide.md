@@ -136,9 +136,11 @@ Before writing ANY browser Amplifier code, verify you have:
 
 - [ ] **JS bridge functions registered** before loading amplifier-browser:
   ```javascript
-  pyodide.globals.set('js_llm_complete', async (messagesJson, toolsJson) => {...});
-  pyodide.globals.set('js_llm_stream', async (messagesJson, onChunk) => {...});
-  pyodide.globals.set('js_web_fetch', async (url) => {...});
+  // MUST use globalThis, NOT pyodide.globals.set()
+  // Python's `from js import X` looks in globalThis, not pyodide.globals
+  globalThis.js_llm_complete = async (messagesJson, toolsJson) => {...};
+  globalThis.js_llm_stream = async (messagesJson, onChunk) => {...};
+  globalThis.js_web_fetch = async (url) => {...};
   ```
 
 - [ ] **Use create_session()** factory (don't wire up internals manually):
@@ -158,7 +160,7 @@ Before writing ANY browser Amplifier code, verify you have:
 | `pyyaml>=6.0.3 but 6.0.2 installed` | Pyodide bundles old PyYAML | Use `deps=False` when installing |
 | `micropip got unexpected kwarg 'deps'` | JS proxy limitation | Use `pyodide.runPythonAsync()` with Python code |
 | `Could not parse wheel metadata` | Short wheel filename | Use full: `name-version-py3-none-any.whl` |
-| `js_llm_complete is not defined` | Missing bridge functions | Register JS functions BEFORE loading amplifier-browser |
+| `js_llm_complete is not defined` | Wrong registration method OR missing bridge | Use `globalThis.js_llm_complete = ...` (NOT `pyodide.globals.set()`) |
 
 ### The amplifier-browser Module
 
@@ -708,7 +710,8 @@ This is a **verified, copy-paste working** single-file HTML that includes everyt
                 updateProgress(95, 'Setting up Amplifier session...');
                 
                 // Register the JS completion function that Python will call
-                pyodide.globals.set('js_webllm_complete', async (messagesJson) => {
+                // MUST use globalThis for Python's `from js import X` to work
+                globalThis.js_webllm_complete = async (messagesJson) => {
                     const messages = JSON.parse(messagesJson);
                     const response = await webllmEngine.chat.completions.create({
                         messages: messages,
@@ -1069,7 +1072,7 @@ Enable verbose logging in development:
 
 ```javascript
 // Log all Amplifier events
-pyodide.globals.set('debug_log', console.log);
+globalThis.debug_log = console.log;
 ```
 
 ### Network Tab
@@ -1165,7 +1168,8 @@ async function init() {
     `);
     
     // Set up bridge to post messages back to main thread
-    pyodide.globals.set('post_to_ui', (msgJson) => {
+    // MUST use globalThis for Python's `from js import X` to work
+    globalThis.post_to_ui = (msgJson) => {
         self.postMessage(JSON.parse(msgJson));
     });
     
