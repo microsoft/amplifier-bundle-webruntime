@@ -45,6 +45,112 @@ Using Amplifier (via Pyodide) instead of raw JavaScript provides:
 
 ---
 
+## CRITICAL: Read This First!
+
+**Browser Amplifier requires THREE components, not one:**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  YOUR HTML/JS APP                                               │
+│       ↓                                                         │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │  amplifier-browser module (Python adapter layer)         │   │
+│  │  • create_session() factory                              │   │
+│  │  • WebGPUProvider (bridges to JS WebLLM)                 │   │
+│  │  • BrowserAmplifierSession                               │   │
+│  │  • Browser-native tools (todo, web)                      │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│       ↓                                                         │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │  amplifier-core wheel (the kernel)                       │   │
+│  │  • Provider, Tool, Orchestrator protocols                │   │
+│  │  • Message types, ChatRequest, ChatResponse              │   │
+│  │  • HookRegistry, events                                  │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│       ↓                                                         │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │  Pyodide (Python WASM runtime)                           │   │
+│  └─────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Quick Start Checklist
+
+Before writing ANY browser Amplifier code, verify you have:
+
+- [ ] **TWO embedded assets** (not just the wheel!):
+  1. `amplifier-core` wheel (base64-encoded `.whl` file)
+  2. `amplifier-browser` module (Python source code, base64-encoded)
+
+- [ ] **Correct wheel filename** in Pyodide filesystem:
+  ```
+  ✗ WRONG: /tmp/amplifier_core.whl
+  ✓ RIGHT: /tmp/amplifier_core-1.0.0-py3-none-any.whl
+  ```
+
+- [ ] **micropip with deps=False** (to avoid PyYAML conflict):
+  ```python
+  # MUST use Python, not JS proxy, to pass deps=False
+  await pyodide.runPythonAsync(`
+      import micropip
+      await micropip.install('emfs:/tmp/amplifier_core-1.0.0-py3-none-any.whl', deps=False)
+  `)
+  ```
+
+- [ ] **JS bridge functions registered** before loading amplifier-browser:
+  ```javascript
+  pyodide.globals.set('js_llm_complete', async (messagesJson, toolsJson) => {...});
+  pyodide.globals.set('js_llm_stream', async (messagesJson, onChunk) => {...});
+  pyodide.globals.set('js_web_fetch', async (url) => {...});
+  ```
+
+- [ ] **Use create_session()** factory (don't wire up internals manually):
+  ```python
+  session = create_session(model_id="Phi-3.5-mini-instruct-q4f16_1-MLC")
+  session.set_system_prompt("You are a helpful assistant.")
+  await session.initialize()
+  response = await session.execute("Hello!")
+  ```
+
+### Common Errors Reference
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `Cannot find 'Coordinator'` | Wrong class name | Use `ModuleCoordinator` from `amplifier_core.coordinator` |
+| `Cannot import 'Message' from models` | Wrong module | Use `amplifier_core.message_models` |
+| `pyyaml>=6.0.3 but 6.0.2 installed` | Pyodide bundles old PyYAML | Use `deps=False` when installing |
+| `micropip got unexpected kwarg 'deps'` | JS proxy limitation | Use `pyodide.runPythonAsync()` with Python code |
+| `Could not parse wheel metadata` | Short wheel filename | Use full: `name-version-py3-none-any.whl` |
+| `js_llm_complete is not defined` | Missing bridge functions | Register JS functions BEFORE loading amplifier-browser |
+
+### The amplifier-browser Module
+
+**This module is ESSENTIAL for browser apps.** It's located at `src/amplifier_browser.py` in this bundle.
+
+The module provides browser-compatible wrappers around amplifier-core:
+
+| Component | Purpose |
+|-----------|---------|
+| `WebGPUProvider` | Provider that bridges to JS WebLLM via `js_llm_complete`/`js_llm_stream` |
+| `BrowserAmplifierSession` | Full session with orchestrator, tools, context |
+| `BrowserContextManager` | In-memory context management |
+| `BrowserOrchestrator` | Orchestrator with manual tool calling (WebLLM's native tool calling is WIP) |
+| `BrowserTodoTool` | Browser-native todo tool |
+| `BrowserWebTool` | Web fetch tool using `js_web_fetch` bridge |
+| `create_session()` | Factory function - **USE THIS** |
+
+**To embed it:**
+1. Base64-encode the Python source: `base64 < src/amplifier_browser.py`
+2. Put in a `<script id="amplifier-browser-py" type="text/plain">` tag
+3. Load it after installing amplifier-core:
+   ```javascript
+   const moduleB64 = document.getElementById('amplifier-browser-py').textContent.trim();
+   const moduleCode = atob(moduleB64);
+   await pyodide.runPythonAsync(moduleCode);
+   ```
+
+---
+
 ## What is Browser Amplifier?
 
 Browser Amplifier runs the full Amplifier stack (amplifier-core, tools, providers) inside a web browser using:

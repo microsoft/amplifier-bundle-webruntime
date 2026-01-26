@@ -17,45 +17,44 @@ This bundle enables running Amplifier applications in web browsers using:
 
 ## Quick Start
 
-### 1. Compose Your Bundle
+**See the working example:** [`examples/minimal-webllm-chat.html`](examples/minimal-webllm-chat.html)
 
-```yaml
-# my-browser-app.yaml
-includes:
-  - bundle: git+https://github.com/microsoft/amplifier-bundle-browser@main
-  - bundle: git+https://github.com/microsoft/amplifier-bundle-webllm@main  # or your provider
+This example is a single-file, copy-paste ready HTML that works out of the box.
+
+### Key Requirements
+
+Browser Amplifier requires **THREE components**:
+
+1. **Pyodide** - Python runtime in WebAssembly
+2. **amplifier-core wheel** - The kernel (embedded as base64, NOT available on PyPI)
+3. **amplifier-browser module** - Browser adapter layer (in `src/amplifier_browser.py`)
+
+### Critical Gotchas
+
+```javascript
+// ❌ WRONG - amplifier-core is NOT on PyPI
+await micropip.install('amplifier-core');
+
+// ❌ WRONG - JS proxy doesn't support kwargs
+await micropip.install('wheel.whl', {deps: false});
+
+// ✅ CORRECT - Embed wheel, use Python for deps=False
+pyodide.FS.writeFile('/tmp/amplifier_core-1.0.0-py3-none-any.whl', wheelBytes);
+await pyodide.runPythonAsync(`
+    import micropip
+    await micropip.install('emfs:/tmp/amplifier_core-1.0.0-py3-none-any.whl', deps=False)
+`);
 ```
 
-### 2. Set Up HTML
+### Building Your Own
 
-```html
-<!DOCTYPE html>
-<html>
-<head>
-    <script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
-    <script type="module">
-        import { CreateMLCEngine } from 'https://esm.run/@mlc-ai/web-llm';
-        
-        // Initialize Pyodide + Amplifier
-        const pyodide = await loadPyodide();
-        await pyodide.loadPackage('micropip');
-        await pyodide.runPythonAsync(`
-            import micropip
-            await micropip.install('amplifier-core')
-        `);
-        
-        // Initialize WebLLM (or your provider)
-        const engine = await CreateMLCEngine('Phi-3.5-mini-instruct-q4f16_1-MLC');
-        
-        // Set up bridge and start session
-        // (See full examples in docs/)
-    </script>
-</head>
-<body>
-    <div id="chat"></div>
-</body>
-</html>
-```
+1. Build the amplifier-core wheel: `python scripts/build-wheel.py --source ~/repos/amplifier-core --output ./dist`
+2. Base64-encode `src/amplifier_browser.py`
+3. Embed both in your HTML (see example)
+4. Set up JS bridge functions BEFORE loading amplifier-browser
+5. Use `create_session()` factory function
+
+See [`context/browser-guide.md`](context/browser-guide.md) for complete documentation.
 
 ## What's Included
 
