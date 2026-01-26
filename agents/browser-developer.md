@@ -217,33 +217,54 @@ If you build raw JS when you should build Amplifier + Pyodide:
 +-------------------------------------------------------------+
 ```
 
-### Initialization Sequence
+### CRITICAL: amplifier-core is NOT on PyPI
 
+**DO NOT try to install amplifier-core from PyPI - it will FAIL:**
 ```javascript
-// 1. Load Pyodide
-const pyodide = await loadPyodide();
-
-// 2. Install amplifier-core
-await pyodide.loadPackage('micropip');
-await pyodide.runPythonAsync(`
-    import micropip
-    await micropip.install('amplifier-core')
-`);
-
-// 3. Set up provider bridge (example: WebLLM)
-pyodide.globals.set('js_llm_complete', async (requestJson) => {
-    const request = JSON.parse(requestJson);
-    const response = await webllmEngine.chat.completions.create(request);
-    return JSON.stringify(response);
-});
-
-// 4. Create Amplifier session
-await pyodide.runPythonAsync(`
-    from amplifier_core import AmplifierSession
-    session = AmplifierSession(config)
-    await session.start()
-`);
+// ❌ WRONG - amplifier-core is NOT on PyPI, this ALWAYS fails:
+await micropip.install('amplifier-core')  // NEVER DO THIS
 ```
+
+### The Correct Approach: AmplifierBrowser
+
+**Step 1: Build the JS bundle (one-time)**
+```bash
+cd amplifier-bundle-browser
+python scripts/build-bundle.py \
+    --core-wheel /path/to/amplifier_core-X.X.X-py3-none-any.whl \
+    --foundation-wheel /path/to/amplifier_foundation-X.X.X-py3-none-any.whl
+# Output: dist/amplifier-browser.js (270KB with embedded wheels)
+```
+
+**Step 2: Use AmplifierBrowser in your HTML**
+```html
+<!-- Load Pyodide -->
+<script src="https://cdn.jsdelivr.net/pyodide/v0.27.0/full/pyodide.js"></script>
+
+<!-- Load the built bundle (has wheels embedded) -->
+<script src="amplifier-browser.js"></script>
+
+<script type="module">
+  import { CreateMLCEngine } from 'https://esm.run/@mlc-ai/web-llm';
+  window.CreateMLCEngine = CreateMLCEngine;
+  
+  // This handles EVERYTHING - Pyodide, wheels, bridges, session
+  const amp = new AmplifierBrowser({
+    model: 'Phi-3.5-mini-instruct-q4f16_1-MLC',
+    onProgress: (stage, pct, msg) => console.log(msg)
+  });
+  
+  await amp.init();
+  const result = await amp.execute('Hello!');
+</script>
+```
+
+**What AmplifierBrowser handles internally:**
+- Loading Pyodide
+- Installing wheels with `deps=False` (from embedded base64)
+- Registering bridges on `globalThis` (not pyodide.globals!)
+- Creating the session
+- Error handling with typed errors
 
 ### Provider Options
 
