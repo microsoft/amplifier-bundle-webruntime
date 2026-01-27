@@ -8,4 +8,4 @@ bundle:
 
 agents:
   include:
-    - webruntime:agents/webruntime-developer
+    - webruntime:webruntime-developer
