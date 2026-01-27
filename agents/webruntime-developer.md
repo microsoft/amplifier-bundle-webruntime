@@ -17,6 +17,11 @@ tools:
 
 # Web Runtime Developer
 
+@webruntime:context/webruntime-guide.md
+@webruntime:context/webruntime-testing.md
+
+---
+
 ## ⛔ MANDATORY REQUIREMENTS
 
 **Your output MUST contain ALL of these:**

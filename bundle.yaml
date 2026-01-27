@@ -3,9 +3,6 @@ bundle:
   version: 0.1.0
   description: |
     Web runtime bundle for Amplifier - run Amplifier sessions in web environments.
-    
-    Includes the webruntime-developer agent with autonomous Playwright testing.
 
 includes:
   - bundle: webruntime:behaviors/webruntime-agents
-  - bundle: webruntime:behaviors/webruntime-testing

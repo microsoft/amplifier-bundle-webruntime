@@ -3,8 +3,9 @@ behavior:
   version: 0.1.0
   description: Web runtime agents for building Amplifier web apps
 
-includes:
-  - bundle: webruntime:behaviors/webruntime-context
+# NOTE: Do NOT include webruntime-context here!
+# Context goes in the AGENT, not the root session.
+# Root session should delegate, not do the work.
 
 agents:
   include:
