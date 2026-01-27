@@ -17,8 +17,8 @@ Build browser-based Amplifier experiences - from standalone HTML files with embe
 
 ## What This Bundle Provides
 
-### Specialist Agent
-- **webruntime-developer** - Builds and tests web Amplifier apps with autonomous Playwright validation
+### Specialist Agent (1)
+- **webruntime-developer** - Builds and tests browser Amplifier apps with autonomous Playwright validation
 
 ### Capabilities
 - **Pyodide Integration** - Run Python amplifier-core in the browser
