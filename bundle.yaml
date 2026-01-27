@@ -1,11 +1,11 @@
 bundle:
-  name: browser
+  name: webruntime
   version: 0.1.0
   description: |
-    Browser development and runtime bundle for Amplifier.
+    Web runtime bundle for Amplifier - run Amplifier sessions in web environments.
     
-    Default: CLI-safe context and agents for building browser apps.
-    For browser runtime: use behaviors/webruntime-core explicitly.
+    Includes the webruntime-developer agent with autonomous Playwright testing.
 
 includes:
-  - bundle: browser:behaviors/webruntime-agents
+  - bundle: webruntime:behaviors/webruntime-agents
+  - bundle: webruntime:behaviors/webruntime-testing

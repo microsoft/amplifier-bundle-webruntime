@@ -1,10 +1,8 @@
-bundle:
-  name: browser-context
+behavior:
+  name: webruntime-context
   version: 0.1.0
-  description: |
-    Browser development context documentation. CLI-safe.
-    Use when you just need guidance docs without agents.
+  description: Context for web runtime development
 
 context:
   include:
-    - browser:context/browser-guide.md
+    - webruntime:context/webruntime-guide.md

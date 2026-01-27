@@ -1,13 +1,11 @@
-bundle:
-  name: browser-agents
+behavior:
+  name: webruntime-agents
   version: 0.1.0
-  description: |
-    Browser development context + agents. CLI-safe.
-    Default behavior for CLI users building browser applications.
+  description: Web runtime agents for building Amplifier web apps
 
 includes:
-  - bundle: browser:behaviors/browser-context
+  - bundle: webruntime:behaviors/webruntime-context
 
 agents:
   include:
-    - browser:webruntime-developer
+    - webruntime:agents/webruntime-developer
