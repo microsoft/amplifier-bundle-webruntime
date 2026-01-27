@@ -1,0 +1,8 @@
+bundle:
+  name: webruntime-behavior
+  version: 1.0.0
+  description: Web runtime agents and browser-based Amplifier capabilities
+
+agents:
+  include:
+    - webruntime:webruntime-developer
