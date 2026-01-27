@@ -18,7 +18,7 @@ Build browser-based Amplifier experiences - from standalone HTML files with embe
 ## What This Bundle Provides
 
 ### Specialist Agent (1)
-- **webruntime-developer** - Builds and tests browser Amplifier apps with autonomous Playwright validation
+- **webruntime-developer** - Builds and tests browser Amplifier apps with autonomous Playwright testing
 
 ### Capabilities
 - **Pyodide Integration** - Run Python amplifier-core in the browser
@@ -33,15 +33,6 @@ Build browser-based Amplifier experiences - from standalone HTML files with embe
 "Create a browser-based Amplifier demo with Phi-3.5"
 "Make a portable offline AI chat application"
 ```
-
-## How It Works
-
-1. **Pyodide** loads Python in the browser via WebAssembly
-2. **amplifier-core** runs inside Pyodide
-3. **WebLLM** provides local LLM inference via WebGPU
-4. **AmplifierWeb** bridges JavaScript and Python
-
-The agent tests apps autonomously with Playwright before delivery.
 
 ---
 

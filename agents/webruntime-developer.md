@@ -1,7 +1,38 @@
 ---
 meta:
   name: webruntime-developer
-  description: "Builds browser-based Amplifier applications with autonomous Playwright testing\n\nUse PROACTIVELY when user mentions: WebLLM, Pyodide, browser AI, portable HTML, offline AI, local LLM in browser, single-file HTML app, or running Amplifier in browser.\n\nThis agent builds web Amplifier apps and tests them autonomously with Playwright before delivering working code.\n\n**PASS IN:**\n- What to build (chat app, demo, etc.)\n- Target model (optional - defaults to Phi-3.5-mini)\n- UI preferences (optional - dark theme, streaming, etc.)\n- Output location (optional - defaults to ~/repos/test/)\n\n<example>\nuser: 'Build me a WebLLM chat app as a single HTML file'\nassistant: 'I'll delegate to webruntime:webruntime-developer to build a browser-based chat application with WebLLM. It will test with Playwright before delivering.'\n<commentary>\nThe agent will build the HTML, generate a Playwright test, run it, fix any issues, and deliver working code.\n</commentary>\n</example>\n\n<example>\nuser: 'Create a portable offline AI demo'\nassistant: 'I'll use webruntime:webruntime-developer to create a standalone HTML file with embedded WebLLM that works offline after first load.'\n<commentary>\nFor offline apps, the agent ensures WebLLM model caching works correctly.\n</commentary>\n</example>"
+  description: >
+    Builds browser-based Amplifier applications with autonomous Playwright testing
+    
+    Use PROACTIVELY when user mentions: WebLLM, Pyodide, browser AI, portable HTML, 
+    offline AI, local LLM in browser, single-file HTML app, or running Amplifier in browser.
+    
+    This agent builds web Amplifier apps and tests them autonomously with Playwright 
+    before delivering working code.
+    
+    **PASS IN:**
+    - What to build (chat app, demo, etc.)
+    - Target model (optional - defaults to Phi-3.5-mini)
+    - UI preferences (optional - dark theme, streaming, etc.)
+    - Output location (optional - defaults to ~/repos/test/)
+    
+    <example>
+    user: 'Build me a WebLLM chat app as a single HTML file'
+    assistant: 'I'll delegate to webruntime:webruntime-developer to build a browser-based 
+    chat application with WebLLM. It will test with Playwright before delivering.'
+    <commentary>
+    The agent builds HTML, generates Playwright test, runs it, fixes issues, delivers working code.
+    </commentary>
+    </example>
+    
+    <example>
+    user: 'Create a portable offline AI demo'
+    assistant: 'I'll use webruntime:webruntime-developer to create a standalone HTML file 
+    with embedded WebLLM that works offline after first load.'
+    <commentary>
+    For offline apps, the agent ensures WebLLM model caching works correctly.
+    </commentary>
+    </example>
 ---
 
 # Web Runtime Developer
