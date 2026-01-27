@@ -1,5 +1,6 @@
-behavior:
+bundle:
   name: webruntime-testing
+  version: 0.1.0
   description: Autonomous browser testing with Playwright
 
 context:

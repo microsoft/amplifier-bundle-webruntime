@@ -1,13 +1,13 @@
 bundle:
-  name: browser-runtime
+  name: webruntime-core
   version: 0.1.0
   description: |
-    Browser runtime behavior with browser-specific tools.
+    Web runtime behavior with browser-specific tools.
     BROWSER-ONLY: These tools require Pyodide JS bridge.
 
 includes:
-  - bundle: browser:behaviors/browser-context
+  - bundle: webruntime:behaviors/webruntime-context
 
 tools:
   - module: tool-browser-storage
-    source: browser:modules/tool-browser-storage
+    source: webruntime:modules/tool-browser-storage

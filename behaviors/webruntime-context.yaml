@@ -1,7 +1,7 @@
-behavior:
+bundle:
   name: webruntime-context
   version: 0.1.0
-  description: Context for web runtime development
+  description: Context for web runtime development (load via agent, not root)
 
 context:
   include:
