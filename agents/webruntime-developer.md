@@ -33,6 +33,7 @@ meta:
     For offline apps, the agent ensures WebLLM model caching works correctly.
     </commentary>
     </example>
+  model_role: [coding, general]
 ---
 
 # Web Runtime Developer
