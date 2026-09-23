@@ -360,11 +360,25 @@ async function initChat() {
         
         pyodide.globals.set('js_web_fetch', async (url) => {
             try {
-                const r = await fetch(url);
+                const parsed = new URL(url);
+                if (parsed.protocol !== 'https:' || parsed.origin === location.origin) {
+                    throw new Error('Only cross-origin HTTPS URLs are allowed');
+                }
+                const r = await fetch(parsed.href, {
+                    credentials: 'omit',
+                    mode: 'cors',
+                    redirect: 'error',
+                    referrerPolicy: 'no-referrer'
+                });
                 return r.ok ? await r.text() : JSON.stringify({error: r.status});
             } catch(e) {
                 return JSON.stringify({error: e.message});
             }
+        });
+        pyodide.globals.set('js_approve_tool_call', async (name, argumentsJson, prompt) => {
+            const args = JSON.parse(argumentsJson);
+            return name === 'todo'
+                || (name === 'web_fetch' && typeof args.url === 'string' && prompt.includes(args.url));
         });
 
         // Load amplifier-browser module

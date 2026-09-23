@@ -125,8 +125,31 @@ print("amplifier-core installed!")
                     return JSON.stringify({ content: fullContent, finish_reason: 'stop' });
                 };
                 globalThis.js_web_fetch = async (url) => {
-                    try { const r = await fetch(url); return await r.text(); }
-                    catch (e) { return `Error: ${e.message}`; }
+                    try {
+                        const parsed = new URL(url);
+                        if (parsed.protocol !== 'https:' || parsed.username || parsed.password) {
+                            throw new Error('Only absolute HTTPS URLs without credentials are allowed');
+                        }
+                        if (parsed.origin === window.location.origin) {
+                            throw new Error('Same-origin requests are not allowed');
+                        }
+                        const response = await fetch(parsed.href, {
+                            credentials: 'omit',
+                            mode: 'cors',
+                            redirect: 'error',
+                            referrerPolicy: 'no-referrer'
+                        });
+                        return await response.text();
+                    } catch (e) {
+                        return `Error: ${e.message}`;
+                    }
+                };
+                globalThis.js_approve_tool_call = async (name, argumentsJson, prompt) => {
+                    const args = JSON.parse(argumentsJson);
+                    return name === 'todo'
+                        || (name === 'web_fetch'
+                            && typeof args.url === 'string'
+                            && prompt.includes(args.url));
                 };
 
                 // 5. Load amplifier-browser module and create session

@@ -71,8 +71,18 @@ const amp = new AmplifierBrowser({
   
   // Optional: Skip WebLLM (for API providers only)
   skipWebLLM: false,
+
+  // Optional: Approve network and custom tool calls
+  approveToolCall: async ({ name, arguments, prompt }) => {
+    return window.confirm(`Allow ${name}?`);
+  },
 });
 ```
+
+Tool calls are schema-validated and limited to one call per user request. By
+default, `todo` is allowed, `web_fetch` is allowed only when its exact absolute
+HTTPS URL appears in the user's prompt, and custom tools are denied. Browser
+fetches omit credentials and reject same-origin requests and redirects.
 
 ### Methods
 

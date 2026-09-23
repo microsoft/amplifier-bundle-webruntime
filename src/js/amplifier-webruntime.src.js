@@ -73,6 +73,7 @@ class AmplifierWeb {
    * @param {boolean} [config.debug] - Enable debug logging
    * @param {string} [config.pyodideUrl] - Custom Pyodide CDN URL
    * @param {boolean} [config.skipWebLLM] - Skip WebLLM initialization (for API providers)
+   * @param {Function} [config.approveToolCall] - Async approval callback receiving {name, arguments, prompt}
    */
   constructor(config = {}) {
     this._config = {
@@ -85,6 +86,7 @@ class AmplifierWeb {
       debug: config.debug || false,
       pyodideUrl: config.pyodideUrl || 'https://cdn.jsdelivr.net/pyodide/v0.27.0/full/',
       skipWebLLM: config.skipWebLLM || false,
+      approveToolCall: config.approveToolCall || null,
     };
     
     this._pyodide = null;
@@ -533,11 +535,43 @@ class AmplifierWeb {
     };
     
     globalThis.js_web_fetch = async (url) => {
-      const response = await fetch(url);
+      const parsed = new URL(url);
+      if (parsed.protocol !== 'https:' || parsed.username || parsed.password) {
+        throw new Error('Only absolute HTTPS URLs without credentials are allowed');
+      }
+      if (globalThis.location && parsed.origin === globalThis.location.origin) {
+        throw new Error('Same-origin requests are not allowed');
+      }
+
+      const response = await fetch(parsed.href, {
+        credentials: 'omit',
+        mode: 'cors',
+        redirect: 'error',
+        referrerPolicy: 'no-referrer',
+      });
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       return await response.text();
+    };
+
+    globalThis.js_approve_tool_call = async (name, argumentsJson, prompt) => {
+      const args = JSON.parse(argumentsJson);
+      if (self._config.approveToolCall) {
+        return Boolean(await self._config.approveToolCall({
+          name,
+          arguments: args,
+          prompt,
+        }));
+      }
+
+      if (name === 'todo') {
+        return true;
+      }
+      if (name === 'web_fetch') {
+        return typeof args.url === 'string' && prompt.includes(args.url);
+      }
+      return false;
     };
   }
   

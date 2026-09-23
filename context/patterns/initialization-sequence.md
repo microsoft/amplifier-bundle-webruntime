@@ -152,7 +152,16 @@ pyodide.globals.set('js_llm_stream', async (messagesJson, onChunk) => {
 // Web fetch bridge
 pyodide.globals.set('js_web_fetch', async (url) => {
     try {
-        const response = await fetch(url);
+        const parsed = new URL(url);
+        if (parsed.protocol !== 'https:' || parsed.origin === location.origin) {
+            throw new Error('Only cross-origin HTTPS URLs are allowed');
+        }
+        const response = await fetch(parsed.href, {
+            credentials: 'omit',
+            mode: 'cors',
+            redirect: 'error',
+            referrerPolicy: 'no-referrer'
+        });
         if (!response.ok) {
             return JSON.stringify({ error: `HTTP ${response.status}` });
         }
@@ -163,6 +172,11 @@ pyodide.globals.set('js_web_fetch', async (url) => {
     } catch (e) {
         return JSON.stringify({ error: e.message });
     }
+});
+pyodide.globals.set('js_approve_tool_call', async (name, argumentsJson, prompt) => {
+    const args = JSON.parse(argumentsJson);
+    return name === 'todo'
+        || (name === 'web_fetch' && typeof args.url === 'string' && prompt.includes(args.url));
 });
 ```
 
