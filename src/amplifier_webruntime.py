@@ -542,11 +542,15 @@ IMPORTANT:
                         )
                         return output
 
-                    approved = bool(
-                        await js_approve_tool_call(
-                            tool_name, json.dumps(tool_args), prompt
+                    try:
+                        approved = (
+                            await js_approve_tool_call(
+                                tool_name, json.dumps(tool_args), prompt
+                            )
+                            is True
                         )
-                    )
+                    except Exception:
+                        approved = False
                     if not approved:
                         output = (
                             f"Tool call rejected: {tool_name} was not explicitly "

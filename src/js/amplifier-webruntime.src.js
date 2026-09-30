@@ -556,22 +556,21 @@ class AmplifierWeb {
     };
 
     globalThis.js_approve_tool_call = async (name, argumentsJson, prompt) => {
-      const args = JSON.parse(argumentsJson);
-      if (self._config.approveToolCall) {
-        return Boolean(await self._config.approveToolCall({
+      const approveToolCall = self._config.approveToolCall;
+      if (typeof approveToolCall !== 'function') {
+        return false;
+      }
+
+      try {
+        const args = JSON.parse(argumentsJson);
+        return (await approveToolCall({
           name,
           arguments: args,
           prompt,
-        }));
+        })) === true;
+      } catch (error) {
+        return false;
       }
-
-      if (name === 'todo') {
-        return true;
-      }
-      if (name === 'web_fetch') {
-        return typeof args.url === 'string' && prompt.includes(args.url);
-      }
-      return false;
     };
   }
   

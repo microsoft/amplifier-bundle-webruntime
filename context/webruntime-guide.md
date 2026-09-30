@@ -133,18 +133,21 @@ new AmplifierBrowser({
   // Advanced: Skip WebLLM (for API providers)
   skipWebLLM: false,
 
-  // Advanced: Approve network and custom tool calls
+  // Required to approve any tool call
   approveToolCall: async ({ name, arguments, prompt }) => {
-    return window.confirm(`Allow ${name}?`);
+    return window.confirm(
+      `Allow tool call "${name}" with arguments:\n${JSON.stringify(arguments, null, 2)}`
+    ) === true;
   },
 });
 ```
 
 The runtime validates every tool call against its `ToolSpec` and permits at
-most one tool execution per user request. Without `approveToolCall`, `todo` is
-allowed, `web_fetch` requires its exact absolute HTTPS URL in the user's
-prompt, and custom tools are denied. Web fetches omit credentials and block
-same-origin requests and redirects.
+most one tool execution per user request. Every tool call is denied unless
+`approveToolCall` is a function that resolves to exactly `true` for that
+invocation; missing callbacks, non-functions, malformed arguments, and callback
+failures deny the call. Web fetches omit credentials and block same-origin
+requests and redirects.
 
 ### Methods
 
@@ -285,8 +288,8 @@ session.register_tool(CalculatorTool())
 `);
 ```
 
-Custom tools require an `approveToolCall` callback that returns `true` for the
-specific invocation.
+All tools require an `approveToolCall` callback that returns exactly `true` for
+the specific invocation.
 
 ---
 

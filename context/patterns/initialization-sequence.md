@@ -129,7 +129,7 @@ llmEngine = await CreateMLCEngine(modelId, {
 
 ```javascript
 // Main completion bridge
-pyodide.globals.set('js_llm_complete', async (messagesJson, toolsJson) => {
+globalThis.js_llm_complete = async (messagesJson, toolsJson) => {
     const messages = JSON.parse(messagesJson);
     const response = await llmEngine.chat.completions.create({
         messages,
@@ -141,20 +141,23 @@ pyodide.globals.set('js_llm_complete', async (messagesJson, toolsJson) => {
         usage: response.usage,
         finish_reason: response.choices[0].finish_reason
     });
-});
+};
 
 // Streaming bridge (optional, falls back to complete)
-pyodide.globals.set('js_llm_stream', async (messagesJson, onChunk) => {
+globalThis.js_llm_stream = async (messagesJson, onChunk) => {
     // Can implement streaming here
-    return pyodide.globals.get('js_llm_complete')(messagesJson, null);
-});
+    return globalThis.js_llm_complete(messagesJson, null);
+};
 
 // Web fetch bridge
-pyodide.globals.set('js_web_fetch', async (url) => {
+globalThis.js_web_fetch = async (url) => {
     try {
         const parsed = new URL(url);
-        if (parsed.protocol !== 'https:' || parsed.origin === location.origin) {
-            throw new Error('Only cross-origin HTTPS URLs are allowed');
+        if (parsed.protocol !== 'https:' || parsed.username || parsed.password) {
+            throw new Error('Only absolute HTTPS URLs without credentials are allowed');
+        }
+        if (globalThis.location && parsed.origin === globalThis.location.origin) {
+            throw new Error('Same-origin requests are not allowed');
         }
         const response = await fetch(parsed.href, {
             credentials: 'omit',
@@ -172,12 +175,19 @@ pyodide.globals.set('js_web_fetch', async (url) => {
     } catch (e) {
         return JSON.stringify({ error: e.message });
     }
-});
-pyodide.globals.set('js_approve_tool_call', async (name, argumentsJson, prompt) => {
-    const args = JSON.parse(argumentsJson);
-    return name === 'todo'
-        || (name === 'web_fetch' && typeof args.url === 'string' && prompt.includes(args.url));
-});
+};
+
+// Python imports these bridges from the JavaScript global scope.
+globalThis.js_approve_tool_call = async (name, argumentsJson, prompt) => {
+    try {
+        const args = JSON.parse(argumentsJson);
+        return window.confirm(
+            `Allow tool call "${name}" with arguments:\n${JSON.stringify(args, null, 2)}`
+        ) === true;
+    } catch (error) {
+        return false;
+    }
+};
 ```
 
 ### Step 7: Load Browser Module
