@@ -71,8 +71,21 @@ const amp = new AmplifierBrowser({
   
   // Optional: Skip WebLLM (for API providers only)
   skipWebLLM: false,
+
+  // Required to approve any tool call
+  approveToolCall: async ({ name, arguments, prompt }) => {
+    return window.confirm(
+      `Allow tool call "${name}" with arguments:\n${JSON.stringify(arguments, null, 2)}`
+    ) === true;
+  },
 });
 ```
+
+Tool calls are schema-validated and limited to one call per user request. Every
+tool call is denied unless `approveToolCall` is a function that resolves to
+exactly `true` for that invocation; missing callbacks, non-functions, malformed
+arguments, and callback failures deny the call. Browser fetches omit credentials
+and reject same-origin requests and redirects.
 
 ### Methods
 
